@@ -1,0 +1,13 @@
+[package]
+name = "Rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive"] }
+rdev = { version = "0.5.3", features = ["serialize"] }
+serde = { version = "1.0.228", features = ["rc", "serde_derive"] }
+serde_yaml = "0.9.34"
+strum = { version = "0.28.0", features = ["derive"] }
+thread-priority = "3.0.0"

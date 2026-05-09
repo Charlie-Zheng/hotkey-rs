@@ -1,0 +1,10 @@
+active_key: 
+  - F8
+actions:
+  - E Down
+  - Delay 16.6666666
+  - E Up
+  - Delay 466.6666666
+  - Shift Down
+  - Delay 16.666666
+  - Shift Up
