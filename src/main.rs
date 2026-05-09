@@ -16,11 +16,11 @@ fn main() -> anyhow::Result<()> {
 
     let mut state = HashMap::new();
     let mut physical_state = HashMap::new();
-    for k in config.active_key.iter().copied() {
+    for k in config.active_keys.iter().copied() {
         state.insert(k, false);
     }
 
-    for k in config.active_key.iter().copied() {
+    for k in config.active_keys.iter().copied() {
         if state.contains_key(&key::Key::Control) {
             physical_state.insert(key::Key::ControlLeft, false);
             physical_state.insert(key::Key::ControlRight, false);

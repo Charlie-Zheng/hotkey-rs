@@ -6,7 +6,7 @@ use crate::key::Key;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Config {
-    pub active_key: Vec<Key>,
+    pub active_keys: Vec<Key>,
     pub actions: Arc<Vec<Action>>,
 }
 
