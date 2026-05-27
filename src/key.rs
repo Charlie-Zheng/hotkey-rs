@@ -279,7 +279,6 @@ impl FromStr for Key {
             "M1" | "MouseLeft" => Ok(Key::MouseLeft),
             "M2" | "MouseRight" => Ok(Key::MouseRight),
             "M3" | "MouseMiddle" => Ok(Key::MouseMiddle),
-            "Unknown" => Err("Unknown key requires a u32 code".to_string()),
             _ => Err(format!("Unknown key: {}", s)),
         }
     }
