@@ -1,5 +1,6 @@
 use std::{str::FromStr, sync::Arc};
 
+use log::debug;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -208,7 +209,7 @@ impl KeyAction {
             (Rdev::Button(button), Direction::Down) => rdev::EventType::ButtonPress(button),
             (Rdev::Button(button), Direction::Up) => rdev::EventType::ButtonRelease(button),
         };
-        println!("Performing action: {}", String::from(*self));
+        debug!("Performing action: {}", String::from(*self));
         rdev::simulate(&event_type)
     }
 }
