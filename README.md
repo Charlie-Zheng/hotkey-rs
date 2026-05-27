@@ -7,14 +7,17 @@ Run a simple hotkey macro.
 The program is configured using a YAML file.
 The `active_keys` is a list of keys which must all be active for the macro to trigger. The macro will retrigger if the keys are held down and the previous run of the macro has finished.
 
-The `actions` is a sequential list of actions which will be executed by the macro. The delays are listed in milliseconds.
+The `actions` is a sequential list of actions which will be executed by the macro. The delays are listed in milliseconds by default. The valid syntax for an action is:
+
+- A KeyName followed by either `Up` or `Down`. Example: `1 Down`
+- `Delay` followed by a non-negative number, which can have decimals. Example: `Delay 500`
 
 The `multiplier` is an optional field which will multiply the delays in the `actions` field by the specified multiplier. Can be useful to switch to a different timebase, such as using frames instead of milliseconds by using `multiplier: 16.666667`.
 
 ## Keys
 
 The list of valid key names:
-| String Input Pattern | Resulting Key Enum (`Key::*`) |
+| KeyName | Resulting Key Enum (`Key::*`) |
 | :--- | :--- |
 | `"Alt"` | `Alt` |
 | `"AltGr"` | `AltGr` |

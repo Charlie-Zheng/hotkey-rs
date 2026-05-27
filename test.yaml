@@ -13,4 +13,7 @@ actions:
   - M1 Down
   - Delay 16
   - M1 Up
+  - Space Down
+  - Delay 16
+  - Space Up
 
