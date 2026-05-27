@@ -1,13 +1,73 @@
 use std::{str::FromStr, sync::Arc};
 
+use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::key::Key;
+use crate::key::{Key, Rdev};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Config {
     pub active_keys: Vec<Key>,
-    pub actions: Arc<Vec<Action>>,
+    pub actions: Vec<Action>,
+    #[serde(default = "default_multiplier")]
+    pub multiplier: Multiplier,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProcessedConfig {
+    pub active_keys: Vec<Key>,
+    pub actions: Arc<Vec<ProcessedAction>>,
+}
+
+fn default_multiplier() -> Multiplier {
+    Multiplier(OrderedFloat(1.0))
+}
+
+impl Config {
+    pub fn process(mut self) -> ProcessedConfig {
+        let mult = self.multiplier.float();
+        let actions: Vec<_> = self
+            .actions
+            .iter()
+            .map(|a| match a {
+                Action::Key(key_action) => ProcessedAction::Key(*key_action),
+                Action::Delay(ordered_float) => {
+                    ProcessedAction::Delay((ordered_float.into_inner() * mult).round() as u64)
+                }
+            })
+            .collect();
+
+        self.multiplier = Multiplier(OrderedFloat(1.0));
+        ProcessedConfig {
+            active_keys: self.active_keys.clone(),
+            actions: Arc::new(actions),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
+pub struct Multiplier(OrderedFloat<f64>);
+
+impl Multiplier {
+    fn float(&self) -> f64 {
+        self.0.into_inner()
+    }
+}
+
+impl<'de> Deserialize<'de> for Multiplier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mult = OrderedFloat::<f64>::deserialize(deserializer)?;
+        if mult <= OrderedFloat(0.0) {
+            return Err(serde::de::Error::custom(format!(
+                "Multiplier must be positive, got {}",
+                mult
+            )));
+        }
+        Ok(Multiplier(mult))
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,7 +91,13 @@ impl FromStr for Direction {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Action {
     Key(KeyAction),
-    Delay(usize),
+    Delay(OrderedFloat<f64>),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ProcessedAction {
+    Key(KeyAction),
+    Delay(u64),
 }
 
 impl Serialize for Action {
@@ -65,7 +131,7 @@ impl<'de> Deserialize<'de> for Action {
             let ms = ms_str.parse::<f64>().map_err(|_| {
                 serde::de::Error::custom(format!("Failed to parse delay: '{}'", ms_str))
             })?;
-            Ok(Action::Delay((ms * 1e6) as usize))
+            Ok(Action::Delay(OrderedFloat(ms * 1e6)))
         } else {
             let key_action = KeyAction::try_from(s).map_err(serde::de::Error::custom)?;
             Ok(Action::Key(key_action))
@@ -135,10 +201,12 @@ impl TryFrom<String> for KeyAction {
 
 impl KeyAction {
     pub fn perform(&self) -> Result<(), rdev::SimulateError> {
-        let rdev_key: rdev::Key = self.key.into();
-        let event_type = match self.direction {
-            Direction::Down => rdev::EventType::KeyPress(rdev_key),
-            Direction::Up => rdev::EventType::KeyRelease(rdev_key),
+        let rdev_key: Rdev = self.key.into();
+        let event_type = match (rdev_key, self.direction) {
+            (Rdev::Key(key), Direction::Down) => rdev::EventType::KeyPress(key),
+            (Rdev::Key(key), Direction::Up) => rdev::EventType::KeyRelease(key),
+            (Rdev::Button(button), Direction::Down) => rdev::EventType::ButtonPress(button),
+            (Rdev::Button(button), Direction::Up) => rdev::EventType::ButtonRelease(button),
         };
         println!("Performing action: {}", String::from(*self));
         rdev::simulate(&event_type)

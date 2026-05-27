@@ -1,18 +1,22 @@
-use std::{collections::HashMap, thread::JoinHandle};
+use std::{collections::HashMap, sync::Arc, thread::JoinHandle};
 
 use clap::Parser;
+use env_logger::Env;
+use log::{debug, info};
 use thread_priority::{ThreadBuilderExt, ThreadPriority};
 
-use crate::config::{Action, Config};
+use crate::config::{Config, ProcessedAction};
 
 mod args;
 mod config;
 mod key;
 use rdev::{Event, listen};
 fn main() -> anyhow::Result<()> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("INFO")).init();
     let args = args::Args::try_parse()?;
     let config: Config = serde_yaml::from_reader(std::fs::File::open(args.config)?)?;
-    println!("Config: {:?}", config);
+    let config = config.process();
+    info!("Config: {:?}", config);
 
     let mut state = HashMap::new();
     let mut physical_state = HashMap::new();
@@ -63,35 +67,10 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 if state.iter().all(|(_, &pressed)| pressed) {
-                    println!("All active keys are pressed!");
-                    println!("Trigger macro!");
                     if thread.is_none() || thread.as_ref().unwrap().is_finished() {
+                        debug!("Trigger macro!");
                         let actions = config.actions.clone();
-
-                        thread = Some(
-                            std::thread::Builder::new()
-                                .name("send_inputs".to_owned())
-                                .spawn_with_priority(ThreadPriority::Max, move |_| {
-                                    let mut deadline = std::time::Instant::now();
-                                    for action in actions.iter() {
-                                        match action {
-                                            Action::Key(key_action) => {
-                                                key_action.perform().unwrap()
-                                            }
-                                            Action::Delay(ns) => {
-                                                deadline +=
-                                                    std::time::Duration::from_nanos(*ns as u64);
-                                                std::thread::sleep(
-                                                    deadline.saturating_duration_since(
-                                                        std::time::Instant::now(),
-                                                    ),
-                                                );
-                                            }
-                                        }
-                                    }
-                                })
-                                .unwrap(),
-                        );
+                        thread = Some(run_macro_on_thread(actions));
                     }
                 }
             }
@@ -137,4 +116,24 @@ fn main() -> anyhow::Result<()> {
     listen(callback).unwrap();
 
     Ok(())
+}
+
+fn run_macro_on_thread(actions: Arc<Vec<ProcessedAction>>) -> JoinHandle<()> {
+    std::thread::Builder::new()
+        .name("send_inputs".to_owned())
+        .spawn_with_priority(ThreadPriority::Max, move |_| {
+            let mut deadline = std::time::Instant::now();
+            for action in actions.iter() {
+                match action {
+                    ProcessedAction::Key(key_action) => key_action.perform().unwrap(),
+                    ProcessedAction::Delay(ns) => {
+                        deadline += std::time::Duration::from_nanos(*ns);
+                        std::thread::sleep(
+                            deadline.saturating_duration_since(std::time::Instant::now()),
+                        );
+                    }
+                }
+            }
+        })
+        .unwrap()
 }

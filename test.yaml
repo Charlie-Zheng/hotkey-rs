@@ -1,10 +1,16 @@
 active_keys: 
   - F8
+multiplier: 16.666666666666667
 actions:
   - E Down
-  - Delay 16.6666666
+  - Delay 1
   - E Up
-  - Delay 466.6666666
+  - Delay 28
   - Shift Down
-  - Delay 16.666666
+  - Delay 1
   - Shift Up
+  - Delay 30
+  - M1 Down
+  - Delay 16
+  - M1 Up
+
